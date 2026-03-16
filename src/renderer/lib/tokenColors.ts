@@ -153,6 +153,15 @@ const EDITOR_UI_COLORS = {
   'scrollbarSlider.background': '#00000018',
   'scrollbarSlider.hoverBackground': '#00000030',
   'scrollbarSlider.activeBackground': '#00000040',
+  // Suggest / autocomplete widget
+  'editorSuggestWidget.background': '#f4f7ff',
+  'editorSuggestWidget.border': '#ffffffcc',
+  'editorSuggestWidget.foreground': '#1a1d2e',
+  'editorSuggestWidget.selectedBackground': '#2563eb18',
+  'editorSuggestWidget.selectedForeground': '#1e3a8a',
+  'editorSuggestWidget.highlightForeground': '#2563eb',
+  'editorSuggestWidget.selectedHighlightForeground': '#1e3a8a',
+  'editorSuggestWidget.focusHighlightForeground': '#2563eb',
 }
 
 export function buildMonacoTheme(

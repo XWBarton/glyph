@@ -22,6 +22,50 @@ let completionProviderRegistered = false
 function ensureCompletionProvider() {
   if (completionProviderRegistered) return
   completionProviderRegistered = true
+
+  // Inject suggest widget structural overrides after Monaco's own styles so
+  // they win. Theme colors are set via buildMonacoTheme; this handles geometry.
+  if (!document.getElementById('glyph-suggest-overrides')) {
+    const style = document.createElement('style')
+    style.id = 'glyph-suggest-overrides'
+    style.textContent = `
+      .suggest-widget {
+        border-radius: 10px !important;
+        backdrop-filter: blur(28px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+        box-shadow: 0 8px 32px rgba(0,40,120,0.13), 0 2px 8px rgba(0,0,0,0.07),
+                    inset 0 1px 0 rgba(255,255,255,0.9) !important;
+        overflow: hidden !important;
+        max-width: 320px !important;
+      }
+      /* Hide the overflowing right-side documentation panel */
+      .suggest-widget .details,
+      .suggest-widget > .details,
+      .suggest-widget-details {
+        display: none !important;
+      }
+      .suggest-widget .suggest-status-bar {
+        display: none !important;
+      }
+      .suggest-widget .monaco-list-row {
+        border-radius: 6px !important;
+        margin: 1px 4px !important;
+      }
+      /* Inline author/year label */
+      .suggest-widget .details-label {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+        font-size: 11px !important;
+        opacity: 0.6 !important;
+      }
+      /* Hide generic file-type icon */
+      .suggest-widget .suggest-icon,
+      .suggest-widget .codicon-symbol-reference {
+        display: none !important;
+      }
+    `
+    document.head.appendChild(style)
+  }
+
   monaco.languages.registerCompletionItemProvider(TYPST_LANGUAGE_ID, {
     triggerCharacters: ['@'],
     provideCompletionItems: (model, position) => {
