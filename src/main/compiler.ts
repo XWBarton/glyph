@@ -67,8 +67,10 @@ function cleanupTempFiles(files: string[]): void {
 /**
  * Find the typst project root for a given file.
  * Walks up the directory tree looking for typst.toml (the canonical project
- * root marker). If none is found, uses the parent of the file's directory so
- * that common structures like project/chapters/file.typ can import ../template.typ.
+ * root marker). If none is found, falls back to the file's own directory.
+ *
+ * For projects that need parent-directory imports (e.g. chapters/*.typ
+ * importing ../_template.typ), add an empty typst.toml at the project root.
  */
 function findProjectRoot(filePath: string): string {
   const fileDir = dirname(filePath)
@@ -79,9 +81,9 @@ function findProjectRoot(filePath: string): string {
     if (parent === current) break // filesystem root
     current = parent
   }
-  // No typst.toml found — go one level up to handle subdirectory structures
-  const parent = dirname(fileDir)
-  return parent !== fileDir ? parent : fileDir
+  // No typst.toml found — use the file's own directory as root.
+  // This is safe and matches Typst's default behaviour.
+  return fileDir
 }
 
 export async function compileTypst(
