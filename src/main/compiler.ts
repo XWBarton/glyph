@@ -64,6 +64,26 @@ function cleanupTempFiles(files: string[]): void {
   }
 }
 
+/**
+ * Find the typst project root for a given file.
+ * Walks up the directory tree looking for typst.toml (the canonical project
+ * root marker). If none is found, uses the parent of the file's directory so
+ * that common structures like project/chapters/file.typ can import ../template.typ.
+ */
+function findProjectRoot(filePath: string): string {
+  const fileDir = dirname(filePath)
+  let current = fileDir
+  while (true) {
+    if (existsSync(join(current, 'typst.toml'))) return current
+    const parent = dirname(current)
+    if (parent === current) break // filesystem root
+    current = parent
+  }
+  // No typst.toml found — go one level up to handle subdirectory structures
+  const parent = dirname(fileDir)
+  return parent !== fileDir ? parent : fileDir
+}
+
 export async function compileTypst(
   content: string,
   filePath: string | null
@@ -79,10 +99,12 @@ export async function compileTypst(
   const tmpDir = app.getPath('temp')
   const id = randomUUID()
 
-  // Input must live inside --root so typst can read it.
-  // When a real file is open, use its directory as both root and input location.
-  const rootDir = filePath ? dirname(filePath) : tmpDir
-  const inputPath = join(rootDir, `.glyph-preview-${id}.typ`)
+  // The temp input file must live inside --root.
+  // Use the project root (not just the file's dir) so that imports like
+  // "../_template.typ" resolve correctly — typst 0.12+ denies access above root.
+  const rootDir = filePath ? findProjectRoot(filePath) : tmpDir
+  const inputDir = filePath ? dirname(filePath) : tmpDir
+  const inputPath = join(inputDir, `.glyph-preview-${id}.typ`)
   const outputPath = join(tmpDir, `glyph-${id}.pdf`)
   activeTempFiles = [inputPath, outputPath]
 
