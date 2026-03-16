@@ -21,6 +21,8 @@ export default function App() {
   }, [pdfBytes, filePath])
 
   const exportDocx = useCallback(async () => {
+    const go = confirm("I hate Word, but sometimes you gotta do what you gotta do.\n\nThe styling won't carry over very well. This is plain content only.")
+    if (!go) return
     const result = await window.api.fileExportDocx(filePath)
     if (!result.success && result.error) alert(result.error)
   }, [filePath])
