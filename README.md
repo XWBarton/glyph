@@ -36,6 +36,14 @@ npm run build   # compiles TypeScript + bundles renderer
 npm run dist    # packages the macOS .dmg into dist/
 ```
 
+## Related
+
+| | |
+|---|---|
+| **[Glyph Quorum](https://github.com/XWBarton/glyph-quorum)** | Self-hosted collaborative web editor — multiple people editing the same Typst document in real time |
+
+---
+
 ## Development
 
 ```bash
