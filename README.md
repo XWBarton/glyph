@@ -10,9 +10,7 @@ Desktop Typst editor for macOS. Write in a Monaco-powered source panel, see the 
 - **Slash commands** — type `/` to open a command palette: headings, lists, tables, images, math, code blocks, and more
 - **File management** — open any `.typ` file; the editor tracks the active file path and passes it to the compiler
 - **Project-aware imports** — walks up the directory tree to find `typst.toml` and sets the Typst root accordingly, so relative imports like `../_template.typ` work without access-denied errors
-- **Asset uploads** — drag files into the editor panel; they are saved alongside your document
 - **Syntax highlighting** — full Typst grammar with custom token colours
-- **Glass morphism UI** — backdrop-blur panels, serif headings, cohesive dark/light palette
 
 ## Install (macOS)
 
