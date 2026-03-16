@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import { compileTypst } from './compiler'
-import { openFile, saveFile, saveFileAs, exportPdf } from './fileManager'
+import { openFile, openFileByPath, saveFile, saveFileAs, exportPdf } from './fileManager'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('typst:compile', async (_event, content: string, filePath: string | null) => {
@@ -14,6 +14,10 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('file:open', async () => {
     return openFile()
+  })
+
+  ipcMain.handle('file:open-by-path', async (_event, filePath: string) => {
+    return openFileByPath(filePath)
   })
 
   ipcMain.handle('file:save', async (_event, filePath: string, content: string) => {

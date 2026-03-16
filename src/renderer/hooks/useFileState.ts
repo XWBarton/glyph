@@ -66,8 +66,18 @@ export function useFileState() {
   const openFile = useCallback(async () => {
     const result = await window.api.fileOpen()
     if (result) {
-      setState({ filePath: result.path, content: result.content, isDirty: false })
+      setState({ filePath: result.path, content: result.content, isDirty: false, lastSaved: null })
     }
+  }, [])
+
+  // Handle "Open With" / double-click from the OS
+  useEffect(() => {
+    return window.api.onOpenFile(async (filePath) => {
+      const result = await window.api.fileOpenByPath(filePath)
+      if (result) {
+        setState({ filePath: result.path, content: result.content, isDirty: false, lastSaved: null })
+      }
+    })
   }, [])
 
   const saveFile = useCallback(async (content: string) => {

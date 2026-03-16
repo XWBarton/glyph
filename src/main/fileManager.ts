@@ -2,6 +2,15 @@ import { dialog, BrowserWindow } from 'electron'
 import { readFileSync, writeFileSync } from 'fs'
 import { basename } from 'path'
 
+export async function openFileByPath(filePath: string): Promise<{ path: string; content: string } | null> {
+  try {
+    const content = readFileSync(filePath, 'utf8')
+    return { path: filePath, content }
+  } catch {
+    return null
+  }
+}
+
 export async function openFile(): Promise<{ path: string; content: string } | null> {
   const win = BrowserWindow.getFocusedWindow()
   const result = await dialog.showOpenDialog(win!, {

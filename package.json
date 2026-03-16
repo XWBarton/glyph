@@ -28,6 +28,15 @@
     "appId": "com.glyph.app",
     "productName": "Glyph",
     "files": ["out/**/*"],
+    "fileAssociations": [
+      {
+        "ext": "typ",
+        "name": "Typst Document",
+        "description": "Typst Document",
+        "role": "Editor",
+        "icon": "resources/icon.icns"
+      }
+    ],
     "mac": {
       "category": "public.app-category.developer-tools",
       "target": "dmg",

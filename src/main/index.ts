@@ -4,6 +4,17 @@ import { registerIpcHandlers } from './ipc'
 import { buildMenu } from './menu'
 
 let mainWindow: BrowserWindow | null = null
+let pendingOpenPath: string | null = null
+
+// macOS fires this before app is ready when launched via "Open With" / double-click
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  if (mainWindow?.webContents) {
+    mainWindow.webContents.send('file:open-path', filePath)
+  } else {
+    pendingOpenPath = filePath
+  }
+})
 
 function createWindow(): void {
   const isMac = process.platform === 'darwin'
@@ -46,6 +57,13 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  mainWindow.webContents.once('did-finish-load', () => {
+    if (pendingOpenPath) {
+      mainWindow!.webContents.send('file:open-path', pendingOpenPath)
+      pendingOpenPath = null
+    }
+  })
 }
 
 app.whenReady().then(() => {
