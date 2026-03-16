@@ -1,12 +1,11 @@
 import { ipcMain } from 'electron'
 import { compileTypst } from './compiler'
-import { openFile, openFileByPath, saveFile, saveFileAs, exportPdf } from './fileManager'
+import { openFile, openFileByPath, saveFile, saveFileAs, exportPdf, exportDocx, readBibFiles } from './fileManager'
 
 export function registerIpcHandlers(): void {
   ipcMain.handle('typst:compile', async (_event, content: string, filePath: string | null) => {
     const result = await compileTypst(content, filePath)
     if ('pdfBytes' in result) {
-      // Transfer as plain array for IPC serialization
       return { pdfBytes: Array.from(result.pdfBytes) }
     }
     return result
@@ -30,5 +29,13 @@ export function registerIpcHandlers(): void {
 
   ipcMain.handle('file:export-pdf', async (_event, pdfBytes: number[], sourceFilePath: string | null) => {
     return exportPdf(pdfBytes, sourceFilePath)
+  })
+
+  ipcMain.handle('file:export-docx', async (_event, sourceFilePath: string | null) => {
+    return exportDocx(sourceFilePath)
+  })
+
+  ipcMain.handle('file:read-bibs', async (_event, sourceFilePath: string) => {
+    return readBibFiles(sourceFilePath)
   })
 }

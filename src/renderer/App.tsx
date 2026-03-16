@@ -19,6 +19,11 @@ export default function App() {
     if (!pdfBytes) return
     await window.api.fileExportPdf(Array.from(pdfBytes), filePath)
   }, [pdfBytes, filePath])
+
+  const exportDocx = useCallback(async () => {
+    const result = await window.api.fileExportDocx(filePath)
+    if (!result.success && result.error) alert(result.error)
+  }, [filePath])
   const [splitPct, setSplitPct] = useState(50)
   const dragging = useRef(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -66,6 +71,7 @@ export default function App() {
         onSave={() => saveFile(content)}
         onSaveAs={() => saveFileAs(content)}
         onExportPdf={exportPdf}
+        onExportDocx={exportDocx}
         hasPdf={!!pdfBytes}
         lastSaved={lastSaved}
         onSettings={() => setSettingsOpen(v => !v)}
@@ -87,7 +93,7 @@ export default function App() {
           border: '1px solid var(--glass-border)',
           boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
         }}>
-          <EditorPane value={content} onChange={setContent} tokenColors={colors} />
+          <EditorPane value={content} filePath={filePath} onChange={setContent} tokenColors={colors} />
         </div>
 
         {/* Divider */}

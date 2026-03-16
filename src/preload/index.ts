@@ -7,6 +7,8 @@ export interface TypstEditorAPI {
   fileSave(filePath: string, content: string): Promise<{ success: boolean; error?: string }>
   fileSaveAs(content: string): Promise<{ path: string } | null>
   fileExportPdf(pdfBytes: number[], sourceFilePath: string | null): Promise<{ success: boolean; error?: string }>
+  fileExportDocx(sourceFilePath: string | null): Promise<{ success: boolean; error?: string }>
+  fileReadBibs(sourceFilePath: string): Promise<string[]>
   onMenuNew(cb: () => void): () => void
   onMenuOpen(cb: () => void): () => void
   onMenuSave(cb: () => void): () => void
@@ -32,6 +34,12 @@ const api: TypstEditorAPI = {
 
   fileExportPdf: (pdfBytes, sourceFilePath) =>
     ipcRenderer.invoke('file:export-pdf', pdfBytes, sourceFilePath),
+
+  fileExportDocx: (sourceFilePath) =>
+    ipcRenderer.invoke('file:export-docx', sourceFilePath),
+
+  fileReadBibs: (sourceFilePath) =>
+    ipcRenderer.invoke('file:read-bibs', sourceFilePath),
 
   onMenuNew: (cb) => {
     const handler = () => cb()

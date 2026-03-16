@@ -10,6 +10,7 @@ interface Props {
   onSave: () => void
   onSaveAs: () => void
   onExportPdf: () => void
+  onExportDocx: () => void
   hasPdf: boolean
   lastSaved: Date | null
   onSettings: () => void
@@ -34,6 +35,7 @@ export function Toolbar({
   onSave,
   onSaveAs,
   onExportPdf,
+  onExportDocx,
   hasPdf,
   lastSaved,
   onSettings
@@ -80,6 +82,7 @@ export function Toolbar({
         <GlassBtn onClick={onSaveAs} title="Save As (⌘⇧S)">Save As</GlassBtn>
         <div style={{ width: 1, height: 16, background: 'rgba(0,0,0,0.1)', margin: '0 2px' }} />
         <GlassBtn onClick={onExportPdf} title="Export PDF" disabled={!hasPdf}>Export PDF</GlassBtn>
+        <GlassBtn onClick={onExportDocx} title="Export Word (.docx) via Pandoc">Export Word</GlassBtn>
       </div>
 
       {/* Center drag region — dragging here moves the window */}

@@ -1,6 +1,7 @@
 import { dialog, BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync } from 'fs'
-import { basename } from 'path'
+import { readFileSync, writeFileSync, readdirSync } from 'fs'
+import { basename, dirname, join } from 'path'
+import { spawn, execSync } from 'child_process'
 
 export async function openFileByPath(filePath: string): Promise<{ path: string; content: string } | null> {
   try {
@@ -80,4 +81,62 @@ export async function exportPdf(
   } catch (e) {
     return { success: false, error: String(e) }
   }
+}
+
+/** Read all .bib files in the same directory as the given source file. */
+export function readBibFiles(sourceFilePath: string): string[] {
+  try {
+    const dir = dirname(sourceFilePath)
+    const bibs = readdirSync(dir).filter(f => f.toLowerCase().endsWith('.bib'))
+    return bibs.map(f => {
+      try { return readFileSync(join(dir, f), 'utf8') } catch { return '' }
+    }).filter(Boolean)
+  } catch {
+    return []
+  }
+}
+
+function findPandoc(): string | null {
+  try {
+    const cmd = process.platform === 'win32' ? 'where pandoc' : 'which pandoc'
+    const found = execSync(cmd, { encoding: 'utf8' }).trim().split('\n')[0]
+    if (found) return found
+  } catch {}
+  const candidates = process.platform === 'win32'
+    ? [`${process.env.LOCALAPPDATA}\\Pandoc\\pandoc.exe`]
+    : ['/opt/homebrew/bin/pandoc', '/usr/local/bin/pandoc', '/usr/bin/pandoc']
+  return candidates.find(c => { try { readFileSync(c); return true } catch { return false } }) ?? null
+}
+
+export async function exportDocx(
+  sourceFilePath: string | null
+): Promise<{ success: boolean; error?: string }> {
+  if (!sourceFilePath) {
+    return { success: false, error: 'Save the file before exporting to Word.' }
+  }
+
+  const pandoc = findPandoc()
+  if (!pandoc) {
+    return { success: false, error: 'Pandoc is not installed. Install it from pandoc.org to enable Word export.' }
+  }
+
+  const win = BrowserWindow.getFocusedWindow()
+  const defaultName = basename(sourceFilePath, '.typ') + '.docx'
+  const result = await dialog.showSaveDialog(win!, {
+    filters: [{ name: 'Word Document', extensions: ['docx'] }],
+    defaultPath: defaultName
+  })
+
+  if (result.canceled || !result.filePath) return { success: false }
+
+  return new Promise((resolve) => {
+    const child = spawn(pandoc, [sourceFilePath, '-o', result.filePath!])
+    let stderr = ''
+    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    child.on('close', (code) => {
+      if (code === 0) resolve({ success: true })
+      else resolve({ success: false, error: stderr.trim() || `pandoc exited with code ${code}` })
+    })
+    child.on('error', (err) => resolve({ success: false, error: err.message }))
+  })
 }

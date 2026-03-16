@@ -7,12 +7,63 @@ import { registerTypstLanguage, TYPST_LANGUAGE_ID } from '../lib/typstLanguage'
 import { buildMonacoTheme, type TokenColors } from '../lib/tokenColors'
 import { filterCommands, type SlashCommand } from '../lib/slashCommands'
 import { SlashCommandPalette } from './SlashCommandPalette'
+import { parseBib, type BibEntry } from '../lib/bibParser'
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() }
 loader.config({ monaco })
 
 registerTypstLanguage(monaco)
 monaco.editor.defineTheme('liquid-glass-light', buildMonacoTheme({}))
+
+// Module-level ref so the completion provider (registered once) always sees fresh entries
+const globalBibEntries: { current: BibEntry[] } = { current: [] }
+
+let completionProviderRegistered = false
+function ensureCompletionProvider() {
+  if (completionProviderRegistered) return
+  completionProviderRegistered = true
+  monaco.languages.registerCompletionItemProvider(TYPST_LANGUAGE_ID, {
+    triggerCharacters: ['@'],
+    provideCompletionItems: (model, position) => {
+      const textUntil = model.getValueInRange({
+        startLineNumber: position.lineNumber,
+        startColumn: 1,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      })
+      const match = textUntil.match(/@([\w-]*)$/)
+      if (!match) return { suggestions: [] }
+
+      const partial = match[1].toLowerCase()
+      const entries = globalBibEntries.current
+      const filtered = partial
+        ? entries.filter(e =>
+            e.key.toLowerCase().includes(partial) ||
+            e.author?.toLowerCase().includes(partial) ||
+            e.title?.toLowerCase().includes(partial)
+          )
+        : entries
+
+      const replaceRange: monaco.IRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: position.column - match[1].length,
+        endColumn: position.column,
+      }
+
+      return {
+        suggestions: filtered.map(e => ({
+          label: e.key,
+          kind: monaco.languages.CompletionItemKind.Reference,
+          detail: [e.author, e.year].filter(Boolean).join(', '),
+          documentation: e.title,
+          insertText: e.key,
+          range: replaceRange,
+        }))
+      }
+    }
+  })
+}
 
 interface PaletteState {
   open: boolean
@@ -24,15 +75,24 @@ interface PaletteState {
 
 interface Props {
   value: string
+  filePath: string | null
   onChange: (value: string) => void
   tokenColors: TokenColors
 }
 
-export function EditorPane({ value, onChange, tokenColors }: Props) {
+export function EditorPane({ value, filePath, onChange, tokenColors }: Props) {
   useEffect(() => {
     monaco.editor.defineTheme('liquid-glass-light', buildMonacoTheme(tokenColors))
     monaco.editor.setTheme('liquid-glass-light')
   }, [tokenColors])
+
+  // Load .bib files whenever the open file changes
+  useEffect(() => {
+    if (!filePath) { globalBibEntries.current = []; return }
+    window.api.fileReadBibs(filePath).then(contents => {
+      globalBibEntries.current = contents.flatMap(c => parseBib(c))
+    })
+  }, [filePath])
 
   const [palette, setPalette] = useState<PaletteState>({
     open: false, x: 0, y: 0, commands: [], selectedIndex: 0
@@ -55,7 +115,6 @@ export function EditorPane({ value, onChange, tokenColors }: Props) {
     const sl = slash.lineNumber, sc = slash.column
     const el = pos.lineNumber,   ec = pos.column
     const snippet = cmd.snippet
-    // Set selection over the slash text so SnippetController replaces it
     setTimeout(() => {
       ed.setSelection(new monaco.Selection(sl, sc, el, ec))
       ed.focus()
@@ -74,14 +133,11 @@ export function EditorPane({ value, onChange, tokenColors }: Props) {
     setPalette(p => ({ ...p, open: false }))
   }, [])
 
-  // Stable refs so the native capture handler always sees the latest callbacks
   const doInsertRef  = useRef(doInsert)
   const closePalRef  = useRef(closePalette)
   doInsertRef.current  = doInsert
   closePalRef.current  = closePalette
 
-  // Native DOM capture listener — fires in the real DOM capture phase,
-  // BEFORE Monaco's textarea event handlers, so stopPropagation actually works.
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
@@ -110,8 +166,8 @@ export function EditorPane({ value, onChange, tokenColors }: Props) {
     editorRef.current = ed
     monaco.editor.setTheme('liquid-glass-light')
     ed.addCommand(monaco.KeyCode.F1, () => {})
+    ensureCompletionProvider()
 
-    // Detect slash commands as user types
     ed.onDidChangeModelContent(() => {
       const pos = ed.getPosition()
       if (!pos) return
@@ -148,7 +204,6 @@ export function EditorPane({ value, onChange, tokenColors }: Props) {
       }
     })
 
-    // Close if cursor moves before the '/'
     ed.onDidChangeCursorPosition((e) => {
       const slash = slashPosRef.current
       if (!slash) return
@@ -188,8 +243,8 @@ export function EditorPane({ value, onChange, tokenColors }: Props) {
           overviewRulerLanes: 0,
           stickyScroll: { enabled: false },
           quickSuggestions: false,
-          suggestOnTriggerCharacters: false,
-          acceptSuggestionOnEnter: 'off',
+          suggestOnTriggerCharacters: true,
+          acceptSuggestionOnEnter: 'on',
           tabCompletion: 'off',
           wordBasedSuggestions: 'off',
           parameterHints: { enabled: false },
