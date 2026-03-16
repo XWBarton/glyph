@@ -7,7 +7,7 @@ import { registerTypstLanguage, TYPST_LANGUAGE_ID } from '../lib/typstLanguage'
 import { buildMonacoTheme, type TokenColors } from '../lib/tokenColors'
 import { filterCommands, type SlashCommand } from '../lib/slashCommands'
 import { SlashCommandPalette } from './SlashCommandPalette'
-import { parseBib, type BibEntry } from '../lib/bibParser'
+import { parseBib, formatBibEntry, firstAuthorLastName, type BibEntry } from '../lib/bibParser'
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() }
 loader.config({ monaco })
@@ -62,6 +62,18 @@ function ensureCompletionProvider() {
       .suggest-widget .codicon-symbol-reference {
         display: none !important;
       }
+      /* Detail / documentation panel */
+      .suggest-widget-details,
+      .editor-widget.suggest-widget .details {
+        border-radius: var(--radius, 10px) !important;
+        border: 1px solid rgba(255,255,255,0.8) !important;
+        background: rgba(244, 247, 255, 0.95) !important;
+        backdrop-filter: blur(28px) saturate(200%) !important;
+        -webkit-backdrop-filter: blur(28px) saturate(200%) !important;
+        box-shadow: 0 8px 32px rgba(0,40,120,0.13), 0 2px 8px rgba(0,0,0,0.07),
+                    inset 0 1px 0 rgba(255,255,255,0.9) !important;
+        max-width: 280px !important;
+      }
     `
     document.head.appendChild(style)
   }
@@ -99,8 +111,8 @@ function ensureCompletionProvider() {
         suggestions: filtered.map(e => ({
           label: e.key,
           kind: monaco.languages.CompletionItemKind.Reference,
-          detail: [e.author, e.year].filter(Boolean).join(', '),
-          documentation: e.title,
+          detail: [firstAuthorLastName(e.author), e.year].filter(Boolean).join(', '),
+          documentation: { value: formatBibEntry(e), isTrusted: true },
           insertText: e.key,
           range: replaceRange,
         }))
@@ -293,7 +305,9 @@ export function EditorPane({ value, filePath, onChange, tokenColors }: Props) {
           wordBasedSuggestions: 'off',
           parameterHints: { enabled: false },
           contextmenu: false,
-          scrollbar: { verticalScrollbarSize: 7, horizontalScrollbarSize: 7 }
+          scrollbar: { verticalScrollbarSize: 7, horizontalScrollbarSize: 7 },
+          fixedOverflowWidgets: true,
+          fixedOverflowWidgets: true
         }}
       />
 

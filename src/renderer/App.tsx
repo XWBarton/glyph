@@ -83,15 +83,16 @@ export default function App() {
         ref={containerRef}
         style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', padding: '10px', gap: 0 }}
       >
-        {/* Editor glass panel */}
+        {/* Editor glass panel.
+            No backdrop-filter here: backdrop-filter creates a stacking context
+            that traps Monaco's overlay widgets (suggest detail panel) behind the
+            preview panel. Background + border preserve the glass look without it. */}
         <div style={{
           width: `calc(${splitPct}% - 5px)`,
           display: 'flex',
-          overflow: 'hidden',
+          overflow: 'visible',
           borderRadius: 'var(--radius)',
-          background: 'rgba(255,255,255,0.52)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+          background: 'rgba(255,255,255,0.72)',
           border: '1px solid var(--glass-border)',
           boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
         }}>
