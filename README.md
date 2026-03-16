@@ -2,7 +2,7 @@
 
 # Glyph
 
-Desktop Typst editor for macOS. Write in a Monaco-powered source panel, see the compiled PDF update live alongside it.
+Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered source panel, see the compiled PDF update live alongside it.
 
 ## Features
 
@@ -12,15 +12,11 @@ Desktop Typst editor for macOS. Write in a Monaco-powered source panel, see the 
 - **Project-aware imports** — walks up the directory tree to find `typst.toml` and uses it as the Typst root; add an empty `typst.toml` at your project root to allow `../` imports across subdirectories
 - **Syntax highlighting** — full Typst grammar with custom token colours
 
-## Install (macOS)
+## Install
 
-Download the latest `.dmg` from the [Releases](https://github.com/XWBarton/glyph/releases) page, open it, and drag **Glyph** into your Applications folder.
+Requires **Typst** on your PATH. The app searches standard install locations automatically (Homebrew, Cargo, system PATH).
 
-Requires **Typst** to be installed and on your PATH (the app will find it automatically in Homebrew and Cargo locations):
-
-```bash
-brew install typst
-```
+A macOS (Apple Silicon) build is available on the [Releases](https://github.com/XWBarton/glyph/releases) page. For other platforms, build from source below.
 
 ## Build from source
 
@@ -30,8 +26,7 @@ Requirements: **Node.js 20+** and **Typst**.
 git clone https://github.com/XWBarton/glyph.git
 cd glyph
 npm install
-npm run build   # compiles TypeScript + bundles renderer
-npm run dist    # packages the macOS .dmg into dist/
+npm run dist    # produces a .dmg / .exe / .AppImage in dist/
 ```
 
 ## Related
