@@ -4,6 +4,8 @@
 
 Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered source panel, see the compiled PDF update live alongside it.
 
+![Glyph screenshot](screenshot.png)
+
 ## Features
 
 - **Live PDF preview** — compiles on every keystroke with debouncing; errors shown inline
