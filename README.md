@@ -45,3 +45,9 @@ npm run dev
 ```
 
 Launches the app in development mode with hot reload.
+
+---
+
+Found this useful and want to help support maintenance?
+
+[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/xbarton)
