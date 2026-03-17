@@ -4,7 +4,7 @@
 
 Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered source panel, see the compiled PDF update live alongside it.
 
-![Glyph screenshot](screenshot.png)
+![Glyph screenshot](screenshot.png?v=2)
 
 ## Features
 
