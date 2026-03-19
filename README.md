@@ -8,7 +8,11 @@ Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered so
 
 ## Features
 
-- **Live PDF preview** — compiles on every keystroke with debouncing; errors shown inline
+- **Live PDF preview** — compiles on every keystroke with debouncing; errors shown inline with a copy button
+- **Book mode** — group multiple `.typ` files into a single project with front matter, chapters, and back matter; add, reorder, and delete sections from a sidebar panel
+- **Per-chapter and full-book preview** — click a chapter to preview it in isolation, or click the book title to compile and preview the whole document at once
+- **Bibliography** — `.bib` files in your book are scanned automatically; `@cite` keys resolve in chapter previews, and the references page always renders against the full book so every citation appears
+- **Image completions** — place images in an `assets/` folder and get path completions when typing `#image("…")`
 - **Slash commands** — type `/` to open a command palette: headings, lists, tables, images, math, code blocks, and more
 - **File management** — open any `.typ` file; the editor tracks the active file path and passes it to the compiler
 - **Project-aware imports** — walks up the directory tree to find `typst.toml` and uses it as the Typst root; add an empty `typst.toml` at your project root to allow `../` imports across subdirectories
