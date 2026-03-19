@@ -86,6 +86,53 @@ function findProjectRoot(filePath: string): string {
   return fileDir
 }
 
+export async function compileTypstFile(filePath: string): Promise<CompileResult> {
+  if (activeProcess) {
+    activeProcess.kill()
+    activeProcess = null
+    cleanupTempFiles(activeTempFiles)
+    activeTempFiles = []
+  }
+
+  const rootDir = findProjectRoot(filePath)
+  const tmpDir = app.getPath('temp')
+  const id = randomUUID()
+  const outputPath = join(tmpDir, `glyph-${id}.pdf`)
+  activeTempFiles = [outputPath]
+
+  return new Promise((resolve) => {
+    const args = [
+      'compile', filePath, outputPath,
+      '--root', rootDir,
+      '--diagnostic-format', 'short'
+    ]
+    const child = spawn(TYPST_BIN, args)
+    activeProcess = child
+    let stderr = ''
+    child.stderr.on('data', (chunk: Buffer) => { stderr += chunk.toString() })
+    child.on('close', (code) => {
+      if (activeProcess === child) { activeProcess = null; activeTempFiles = [] }
+      if (code === 0 && existsSync(outputPath)) {
+        try {
+          const buf = readFileSync(outputPath)
+          cleanupTempFiles([outputPath])
+          resolve({ pdfBytes: new Uint8Array(buf) })
+        } catch (e) {
+          cleanupTempFiles([outputPath])
+          resolve({ error: String(e) })
+        }
+      } else {
+        cleanupTempFiles([outputPath])
+        resolve({ error: stderr.trim() || `typst exited with code ${code}` })
+      }
+    })
+    child.on('error', (err) => {
+      cleanupTempFiles([outputPath])
+      resolve({ error: `Failed to run typst: ${err.message}` })
+    })
+  })
+}
+
 export async function compileTypst(
   content: string,
   filePath: string | null
@@ -147,7 +194,9 @@ export async function compileTypst(
         }
       } else {
         cleanupTempFiles([inputPath, outputPath])
-        const msg = stderr.trim() || `typst exited with code ${code}`
+        const raw = stderr.trim() || `typst exited with code ${code}`
+        // Strip internal temp file paths, keep only line:col context
+        const msg = raw.replace(/[^\s]+\.glyph-preview-[a-f0-9-]+\.typ/g, filePath ? filePath.split('/').pop()! : 'document.typ')
         resolve({ error: msg })
       }
     })

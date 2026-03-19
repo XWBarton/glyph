@@ -15,8 +15,9 @@ loader.config({ monaco })
 registerTypstLanguage(monaco)
 monaco.editor.defineTheme('liquid-glass-light', buildMonacoTheme({}))
 
-// Module-level ref so the completion provider (registered once) always sees fresh entries
+// Module-level refs so completion providers (registered once) always see fresh data
 const globalBibEntries: { current: BibEntry[] } = { current: [] }
+const globalAssets: { current: string[] } = { current: [] }
 
 let completionProviderRegistered = false
 function ensureCompletionProvider() {
@@ -79,6 +80,43 @@ function ensureCompletionProvider() {
   }
 
   monaco.languages.registerCompletionItemProvider(TYPST_LANGUAGE_ID, {
+    triggerCharacters: ['"', '/'],
+    provideCompletionItems: (model, position) => {
+      const textUntil = model.getValueInRange({
+        startLineNumber: position.lineNumber,
+        startColumn: 1,
+        endLineNumber: position.lineNumber,
+        endColumn: position.column,
+      })
+      const match = textUntil.match(/#image\("([^"]*)$/)
+      if (!match) return { suggestions: [] }
+
+      const partial = match[1].toLowerCase()
+      const assets = globalAssets.current
+      const filtered = partial
+        ? assets.filter(a => a.toLowerCase().includes(partial))
+        : assets
+
+      const replaceRange: monaco.IRange = {
+        startLineNumber: position.lineNumber,
+        endLineNumber: position.lineNumber,
+        startColumn: position.column - match[1].length,
+        endColumn: position.column,
+      }
+
+      return {
+        suggestions: filtered.map(asset => ({
+          label: asset,
+          kind: monaco.languages.CompletionItemKind.File,
+          detail: asset.split('/').pop(),
+          insertText: asset,
+          range: replaceRange,
+        }))
+      }
+    }
+  })
+
+  monaco.languages.registerCompletionItemProvider(TYPST_LANGUAGE_ID, {
     triggerCharacters: ['@'],
     provideCompletionItems: (model, position) => {
       const textUntil = model.getValueInRange({
@@ -132,23 +170,42 @@ interface PaletteState {
 interface Props {
   value: string
   filePath: string | null
+  bookRoot?: string | null
   onChange: (value: string) => void
   tokenColors: TokenColors
 }
 
-export function EditorPane({ value, filePath, onChange, tokenColors }: Props) {
+export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }: Props) {
   useEffect(() => {
     monaco.editor.defineTheme('liquid-glass-light', buildMonacoTheme(tokenColors))
     monaco.editor.setTheme('liquid-glass-light')
   }, [tokenColors])
 
-  // Load .bib files whenever the open file changes
+  // Load .bib files — from book root when in book mode, otherwise from file's directory
   useEffect(() => {
-    if (!filePath) { globalBibEntries.current = []; return }
-    window.api.fileReadBibs(filePath).then(contents => {
-      globalBibEntries.current = contents.flatMap(c => parseBib(c))
-    })
-  }, [filePath])
+    if (bookRoot) {
+      window.api.fileReadBibsFromDir(bookRoot).then(contents => {
+        globalBibEntries.current = contents.flatMap(c => parseBib(c))
+      })
+    } else if (filePath) {
+      window.api.fileReadBibs(filePath).then(contents => {
+        globalBibEntries.current = contents.flatMap(c => parseBib(c))
+      })
+    } else {
+      globalBibEntries.current = []
+    }
+  }, [filePath, bookRoot])
+
+  // Load asset list for #image() completions
+  useEffect(() => {
+    if (bookRoot) {
+      window.api.bookListAssets(bookRoot).then(assets => {
+        globalAssets.current = assets
+      })
+    } else {
+      globalAssets.current = []
+    }
+  }, [bookRoot])
 
   const [palette, setPalette] = useState<PaletteState>({
     open: false, x: 0, y: 0, commands: [], selectedIndex: 0
@@ -306,7 +363,6 @@ export function EditorPane({ value, filePath, onChange, tokenColors }: Props) {
           parameterHints: { enabled: false },
           contextmenu: false,
           scrollbar: { verticalScrollbarSize: 7, horizontalScrollbarSize: 7 },
-          fixedOverflowWidgets: true,
           fixedOverflowWidgets: true
         }}
       />

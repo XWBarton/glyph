@@ -1,7 +1,20 @@
 import { dialog, BrowserWindow } from 'electron'
-import { readFileSync, writeFileSync, readdirSync } from 'fs'
+import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync } from 'fs'
 import { basename, dirname, join } from 'path'
 import { spawn, execSync } from 'child_process'
+
+export interface BookChapter {
+  title: string
+  file: string
+  section?: 'front' | 'chapter' | 'back'
+}
+
+export interface BookConfig {
+  title: string
+  mainFile: string
+  chapters: BookChapter[]
+  bibliography?: string
+}
 
 export async function openFileByPath(filePath: string): Promise<{ path: string; content: string } | null> {
   try {
@@ -34,6 +47,7 @@ export async function saveFile(
   content: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    mkdirSync(dirname(filePath), { recursive: true })
     writeFileSync(filePath, content, 'utf8')
     return { success: true }
   } catch (e) {
@@ -81,6 +95,133 @@ export async function exportPdf(
   } catch (e) {
     return { success: false, error: String(e) }
   }
+}
+
+export async function openFolder(): Promise<string | null> {
+  const win = BrowserWindow.getFocusedWindow()
+  const result = await dialog.showOpenDialog(win!, {
+    properties: ['openDirectory']
+  })
+  if (result.canceled || result.filePaths.length === 0) return null
+  return result.filePaths[0]
+}
+
+export function readBookConfig(dir: string): BookConfig | null {
+  try {
+    const configPath = join(dir, 'glyph-book.json')
+    if (!existsSync(configPath)) return null
+    return JSON.parse(readFileSync(configPath, 'utf8')) as BookConfig
+  } catch {
+    return null
+  }
+}
+
+export function writeBookConfig(dir: string, config: BookConfig): { success: boolean; error?: string } {
+  try {
+    writeFileSync(join(dir, 'glyph-book.json'), JSON.stringify(config, null, 2), 'utf8')
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
+
+export function listBibPaths(bookRoot: string): string[] {
+  const results: string[] = []
+  function walk(current: string) {
+    try {
+      for (const entry of readdirSync(current, { withFileTypes: true })) {
+        const full = join(current, entry.name)
+        if (entry.isDirectory()) {
+          walk(full)
+        } else if (entry.name.toLowerCase().endsWith('.bib')) {
+          // Return as absolute-from-root path e.g. /back/references.bib
+          results.push('/' + full.slice(bookRoot.length + 1).replace(/\\/g, '/'))
+        }
+      }
+    } catch {}
+  }
+  walk(bookRoot)
+  return results
+}
+
+export function createBook(dir: string, config: BookConfig): { success: boolean; error?: string } {
+  try {
+    for (const subdir of ['front', 'chapters', 'back', 'assets']) {
+      const d = join(dir, subdir)
+      if (!existsSync(d)) mkdirSync(d, { recursive: true })
+    }
+
+    // Create an empty typst.toml so Typst uses this folder as the project root
+    const tomlPath = join(dir, 'typst.toml')
+    if (!existsSync(tomlPath)) {
+      writeFileSync(tomlPath, '', 'utf8')
+    }
+
+    for (const chapter of config.chapters) {
+      const chapterPath = join(dir, chapter.file)
+      if (!existsSync(chapterPath)) {
+        writeFileSync(chapterPath, `= ${chapter.title}\n\nStart writing here.\n`, 'utf8')
+      }
+    }
+
+    const mainPath = join(dir, config.mainFile)
+    if (!existsSync(mainPath)) {
+      const includes = config.chapters.map(c => `#include "${c.file}"`).join('\n')
+      const bibLine = config.bibliography ? `\n#bibliography("${config.bibliography}")\n` : ''
+      writeFileSync(mainPath,
+        `#set page(margin: 2cm)\n#set text(font: "New Computer Modern", size: 11pt)\n\n${includes}${bibLine}`,
+        'utf8'
+      )
+    }
+
+    writeBookConfig(dir, config)
+    return { success: true }
+  } catch (e) {
+    return { success: false, error: String(e) }
+  }
+}
+
+const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.pdf']
+
+export function listAssets(bookRoot: string): string[] {
+  const assetsDir = join(bookRoot, 'assets')
+  if (!existsSync(assetsDir)) return []
+
+  function walk(dir: string): string[] {
+    const results: string[] = []
+    try {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) {
+          results.push(...walk(full))
+        } else if (IMAGE_EXTS.some(ext => entry.name.toLowerCase().endsWith(ext))) {
+          // Return as absolute-from-root path e.g. /assets/figure1.png
+          results.push('/' + full.slice(bookRoot.length + 1).replace(/\\/g, '/'))
+        }
+      }
+    } catch {}
+    return results
+  }
+
+  return walk(assetsDir)
+}
+
+export function readBibFilesFromDir(dir: string): string[] {
+  const results: string[] = []
+  function walk(current: string) {
+    try {
+      for (const entry of readdirSync(current, { withFileTypes: true })) {
+        const full = join(current, entry.name)
+        if (entry.isDirectory()) {
+          walk(full)
+        } else if (entry.name.toLowerCase().endsWith('.bib')) {
+          try { results.push(readFileSync(full, 'utf8')) } catch {}
+        }
+      }
+    } catch {}
+  }
+  walk(dir)
+  return results.filter(Boolean)
 }
 
 /** Read all .bib files in the same directory as the given source file. */

@@ -1,18 +1,54 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { EditorPane } from './components/EditorPane'
 import { PreviewPane } from './components/PreviewPane'
 import { SettingsPanel } from './components/SettingsPanel'
+import { BookPanel } from './components/BookPanel'
 import { useFileState } from './hooks/useFileState'
 import { useTypstCompiler } from './hooks/useTypstCompiler'
 import { useTokenColors } from './hooks/useTokenColors'
 
 export default function App() {
-  const { filePath, content, isDirty, lastSaved, setContent, openFile, saveFile, saveFileAs, newFile } =
-    useFileState()
-  const { pdfBytes, error, isCompiling } = useTypstCompiler(content, filePath)
-  const { colors, updateColor, resetColors, resetOne } = useTokenColors()
+  const {
+    filePath, content, isDirty, lastSaved,
+    bookRoot, bookConfig,
+    setContent, openFile, saveFile, saveFileAs, newFile,
+    activateFile, newBook, openBook, closeBook, updateBookConfig, addChapter, saveActiveNow,
+  } = useFileState()
 
+  const bookMainFilePath = bookRoot && bookConfig
+    ? `${bookRoot}/${bookConfig.mainFile}`
+    : null
+
+  const [bookPreviewMode, setBookPreviewMode] = useState<'chapter' | 'book'>('chapter')
+  const [bookBibPaths, setBookBibPaths] = useState<string[]>([])
+
+  // Reset to chapter preview when book is closed
+  useEffect(() => {
+    if (!bookRoot) { setBookPreviewMode('chapter'); setBookBibPaths([]) ; return }
+    window.api.bookListBibPaths(bookRoot).then(setBookBibPaths)
+  }, [bookRoot])
+
+  const chapterHasBib = bookRoot && content.includes('#bibliography(')
+  const compileFilePath = bookMainFilePath && (bookPreviewMode === 'book' || chapterHasBib) ? bookMainFilePath : null
+
+  // In chapter mode within a book, append bibliography so @cite keys resolve
+  const compileContent = useMemo(() => {
+    if (!bookRoot || compileFilePath || bookBibPaths.length === 0 || content.includes('#bibliography(')) return content
+    const bibArg = bookBibPaths.length === 1
+      ? `"${bookBibPaths[0]}"`
+      : `(${bookBibPaths.map(p => `"${p}"`).join(', ')})`
+    return content + `\n\n#bibliography(${bibArg}, title: none)`
+  }, [content, bookRoot, compileFilePath, bookBibPaths])
+
+  const { pdfBytes, error, isCompiling } = useTypstCompiler(
+    compileContent,
+    filePath,
+    compileFilePath,
+    compileFilePath ? saveActiveNow : undefined
+  )
+
+  const { colors, updateColor, resetColors, resetOne } = useTokenColors()
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   const exportPdf = useCallback(async () => {
@@ -26,9 +62,10 @@ export default function App() {
     const result = await window.api.fileExportDocx(filePath)
     if (!result.success && result.error) alert(result.error)
   }, [filePath])
+
   const [splitPct, setSplitPct] = useState(50)
   const dragging = useRef(false)
-  const containerRef = useRef<HTMLDivElement>(null)
+  const splitContainerRef = useRef<HTMLDivElement>(null)
 
   const onMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -37,8 +74,8 @@ export default function App() {
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
-      if (!dragging.current || !containerRef.current) return
-      const rect = containerRef.current.getBoundingClientRect()
+      if (!dragging.current || !splitContainerRef.current) return
+      const rect = splitContainerRef.current.getBoundingClientRect()
       const pct = ((e.clientX - rect.left) / rect.width) * 100
       setSplitPct(Math.min(80, Math.max(20, pct)))
     }
@@ -77,63 +114,101 @@ export default function App() {
         hasPdf={!!pdfBytes}
         lastSaved={lastSaved}
         onSettings={() => setSettingsOpen(v => !v)}
+        onNewBook={newBook}
+        onOpenBook={openBook}
+        isBookOpen={!!bookRoot}
       />
 
-      <div
-        ref={containerRef}
-        style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative', padding: '10px', gap: 0 }}
-      >
-        {/* Editor glass panel.
-            No backdrop-filter here: backdrop-filter creates a stacking context
-            that traps Monaco's overlay widgets (suggest detail panel) behind the
-            preview panel. Background + border preserve the glass look without it. */}
-        <div style={{
-          width: `calc(${splitPct}% - 5px)`,
-          display: 'flex',
-          overflow: 'visible',
-          borderRadius: 'var(--radius)',
-          background: 'rgba(255,255,255,0.72)',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
-        }}>
-          <EditorPane value={content} filePath={filePath} onChange={setContent} tokenColors={colors} />
-        </div>
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        overflow: 'hidden',
+        position: 'relative',
+        padding: '10px',
+        gap: 0,
+      }}>
+        {/* Book panel (when a book is open) */}
+        {bookRoot && bookConfig && (
+          <BookPanel
+            bookRoot={bookRoot}
+            bookConfig={bookConfig}
+            activeFilePath={filePath}
+            previewMode={bookPreviewMode}
+            onActivate={(path) => { activateFile(path); setBookPreviewMode('chapter') }}
+            onSelectFullBook={() => setBookPreviewMode('book')}
+            onUpdateConfig={updateBookConfig}
+            onClose={closeBook}
+            onAddChapter={addChapter}
+          />
+        )}
 
-        {/* Divider */}
+        {/* Editor + Preview split container */}
         <div
-          onMouseDown={onMouseDown}
-          style={{
-            width: 10,
-            flexShrink: 0,
-            cursor: 'col-resize',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
-          }}
+          ref={splitContainerRef}
+          style={{ flex: 1, display: 'flex', overflow: 'hidden', gap: 0 }}
         >
+          {/* Editor glass panel.
+              No backdrop-filter here: backdrop-filter creates a stacking context
+              that traps Monaco's overlay widgets (suggest detail panel) behind the
+              preview panel. Background + border preserve the glass look without it. */}
           <div style={{
-            width: 2,
-            height: 48,
-            borderRadius: 2,
-            background: 'rgba(255,255,255,0.7)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.1)'
-          }} />
-        </div>
+            width: `calc(${splitPct}% - 5px)`,
+            display: 'flex',
+            overflow: 'visible',
+            borderRadius: 'var(--radius)',
+            background: 'rgba(255,255,255,0.72)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
+          }}>
+            <EditorPane
+              value={content}
+              filePath={filePath}
+              bookRoot={bookRoot}
+              onChange={setContent}
+              tokenColors={colors}
+            />
+          </div>
 
-        {/* Preview glass panel */}
-        <div style={{
-          flex: 1,
-          display: 'flex',
-          overflow: 'hidden',
-          position: 'relative',
-          borderRadius: 'var(--radius)',
-          background: 'rgba(255,255,255,0.45)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-          border: '1px solid var(--glass-border)',
-          boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
-        }}>
-          <PreviewPane pdfBytes={pdfBytes} error={error} isCompiling={isCompiling} />
+          {/* Divider */}
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              width: 10,
+              flexShrink: 0,
+              cursor: 'col-resize',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <div style={{
+              width: 2,
+              height: 48,
+              borderRadius: 2,
+              background: 'rgba(255,255,255,0.7)',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.1)'
+            }} />
+          </div>
+
+          {/* Preview glass panel */}
+          <div style={{
+            flex: 1,
+            display: 'flex',
+            overflow: 'hidden',
+            position: 'relative',
+            borderRadius: 'var(--radius)',
+            background: 'rgba(255,255,255,0.45)',
+            backdropFilter: 'blur(24px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+            border: '1px solid var(--glass-border)',
+            boxShadow: 'var(--glass-shadow), inset 0 1px 0 rgba(255,255,255,0.95)'
+          }}>
+            <PreviewPane
+              pdfBytes={pdfBytes}
+              error={error}
+              isCompiling={isCompiling}
+            />
+          </div>
         </div>
       </div>
 
