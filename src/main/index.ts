@@ -9,7 +9,7 @@ let pendingOpenPath: string | null = null
 // macOS fires this before app is ready when launched via "Open With" / double-click
 app.on('open-file', (event, filePath) => {
   event.preventDefault()
-  if (mainWindow?.webContents) {
+  if (mainWindow?.webContents && !mainWindow.webContents.isDestroyed()) {
     mainWindow.webContents.send('file:open-path', filePath)
   } else {
     pendingOpenPath = filePath
@@ -57,6 +57,8 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  mainWindow.on('closed', () => { mainWindow = null })
 
   mainWindow.webContents.once('did-finish-load', () => {
     if (pendingOpenPath) {

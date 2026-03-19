@@ -22,6 +22,7 @@ interface OpenFile {
 interface State {
   openFiles: Record<string, OpenFile>
   activeFilePath: string | null
+  unsavedContent: string
   bookRoot: string | null
   bookConfig: BookConfig | null
 }
@@ -56,6 +57,7 @@ export function useFileState() {
   const [state, setState] = useState<State>({
     openFiles: {},
     activeFilePath: null,
+    unsavedContent: DEFAULT_CONTENT,
     bookRoot: null,
     bookConfig: null,
   })
@@ -66,7 +68,7 @@ export function useFileState() {
 
   const activeFile = state.activeFilePath ? state.openFiles[state.activeFilePath] : null
   const filePath = state.activeFilePath
-  const content = activeFile?.content ?? DEFAULT_CONTENT
+  const content = activeFile?.content ?? state.unsavedContent
   const isDirty = activeFile?.isDirty ?? false
   const lastSaved = activeFile?.lastSaved ?? null
 
@@ -97,7 +99,7 @@ export function useFileState() {
   const setContent = useCallback((newContent: string) => {
     setState(s => {
       const path = s.activeFilePath
-      if (!path) return s
+      if (!path) return { ...s, unsavedContent: newContent }
       return {
         ...s,
         openFiles: { ...s.openFiles, [path]: { ...s.openFiles[path], content: newContent, isDirty: true } }
@@ -176,7 +178,7 @@ export function useFileState() {
   }, [])
 
   const newFile = useCallback(() => {
-    setState({ openFiles: {}, activeFilePath: null, bookRoot: null, bookConfig: null })
+    setState({ openFiles: {}, activeFilePath: null, unsavedContent: DEFAULT_CONTENT, bookRoot: null, bookConfig: null })
   }, [])
 
   // Save active file immediately (used before book compilation)
