@@ -58,5 +58,5 @@ export function useTypstCompiler(
     }
   }, [content, filePath, compileFilePath, compile])
 
-  return state
+  return { ...state, compile }
 }

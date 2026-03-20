@@ -8,7 +8,11 @@ Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered so
 
 ## Features
 
-- **Live PDF preview** — compiles on every keystroke with debouncing; errors shown inline with a copy button
+- **Live PDF preview** — compiles on every keystroke with debouncing; errors shown inline with a copy button; press **Cmd+R** to force a rerender at any time
+- **PDF zoom** — zoom the preview from 50% to 300% with − / + controls docked below the preview pane
+- **Find and replace** — press **Cmd+F** (or **Cmd+H** for replace) for a styled find/replace panel with match count, case/whole-word/regex toggles, and prev/next navigation
+- **Bold and italic shortcuts** — select text and press **Cmd+B** for bold (`*...*`) or **Cmd+I** for italic (`_..._`); pressing again toggles them off
+- **Editor font size** — adjust source text size with − / + controls in the editor pane corner
 - **Book mode** — group multiple `.typ` files into a single project with front matter, chapters, and back matter; add, reorder, and delete sections from a sidebar panel
 - **Per-chapter and full-book preview** — click a chapter to preview it in isolation, or click the book title to compile and preview the whole document at once
 - **Bibliography** — `.bib` files in your book are scanned automatically; `@cite` keys resolve in chapter previews, and the references page always renders against the full book so every citation appears
@@ -17,6 +21,7 @@ Desktop Typst editor for macOS, Windows, and Linux. Write in a Monaco-powered so
 - **File management** — open any `.typ` file; the editor tracks the active file path and passes it to the compiler
 - **Project-aware imports** — walks up the directory tree to find `typst.toml` and uses it as the Typst root; add an empty `typst.toml` at your project root to allow `../` imports across subdirectories
 - **Syntax highlighting** — full Typst grammar with custom token colours
+- **Linux support** — native window decorations and a Quit menu item on Linux (Ubuntu, etc.)
 
 ## Install
 

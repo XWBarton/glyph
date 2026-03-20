@@ -7,6 +7,7 @@ import { registerTypstLanguage, TYPST_LANGUAGE_ID } from '../lib/typstLanguage'
 import { buildMonacoTheme, type TokenColors } from '../lib/tokenColors'
 import { filterCommands, type SlashCommand } from '../lib/slashCommands'
 import { SlashCommandPalette } from './SlashCommandPalette'
+import { FindReplaceModal } from './FindReplaceModal'
 import { parseBib, formatBibEntry, firstAuthorLastName, type BibEntry } from '../lib/bibParser'
 
 self.MonacoEnvironment = { getWorker: () => new editorWorker() }
@@ -207,6 +208,24 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
     }
   }, [bookRoot])
 
+  const [fontSize, setFontSize] = useState(14)
+
+  const [findOpen, setFindOpen] = useState(false)
+  const [findShowReplace, setFindShowReplace] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+
+  // Stable ref so handleMount closure can always call latest openFind
+  const openFindRef = useRef<(showReplace: boolean) => void>(() => {})
+  openFindRef.current = (showReplace: boolean) => {
+    const ed = editorRef.current
+    const selection = ed?.getSelection()
+    const model = ed?.getModel()
+    const selected = (selection && model) ? model.getValueInRange(selection).trim() : ''
+    if (selected) setFindQuery(selected)
+    setFindShowReplace(showReplace)
+    setFindOpen(true)
+  }
+
   const [palette, setPalette] = useState<PaletteState>({
     open: false, x: 0, y: 0, commands: [], selectedIndex: 0
   })
@@ -279,6 +298,65 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
     editorRef.current = ed
     monaco.editor.setTheme('liquid-glass-light')
     ed.addCommand(monaco.KeyCode.F1, () => {})
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyF, () => openFindRef.current(false))
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyH, () => openFindRef.current(true))
+
+    // Cmd+B / Cmd+I: wrap selection in Typst bold (*) or italic (_)
+    const wrapWithMarker = (marker: string) => {
+      const model = ed.getModel()
+      const sel = ed.getSelection()
+      if (!model || !sel) return
+
+      const mLen = marker.length
+
+      if (sel.isEmpty()) {
+        // No selection: insert pair and place cursor between
+        const col = sel.startColumn
+        ed.executeEdits('glyph-format', [{ range: sel, text: marker + marker }])
+        ed.setPosition({ lineNumber: sel.startLineNumber, column: col + mLen })
+        ed.focus()
+        return
+      }
+
+      // Toggle off if selection is already wrapped with this marker
+      if (sel.startColumn > mLen) {
+        const beforeRange = {
+          startLineNumber: sel.startLineNumber, startColumn: sel.startColumn - mLen,
+          endLineNumber: sel.startLineNumber,   endColumn: sel.startColumn,
+        }
+        const afterRange = {
+          startLineNumber: sel.endLineNumber, startColumn: sel.endColumn,
+          endLineNumber: sel.endLineNumber,   endColumn: sel.endColumn + mLen,
+        }
+        if (model.getValueInRange(beforeRange) === marker && model.getValueInRange(afterRange) === marker) {
+          // Remove markers (later position first to avoid column drift)
+          ed.executeEdits('glyph-format', [
+            { range: afterRange, text: '' },
+            { range: beforeRange, text: '' },
+          ])
+          ed.setSelection({
+            startLineNumber: sel.startLineNumber, startColumn: sel.startColumn - mLen,
+            endLineNumber: sel.endLineNumber,     endColumn: sel.endColumn - mLen,
+          })
+          ed.focus()
+          return
+        }
+      }
+
+      // Wrap selection using snippet controller so cursor/selection lands correctly
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ctrl = (ed as any).getContribution('snippetController2')
+      if (ctrl?.insert) {
+        ctrl.insert(`${marker}$TM_SELECTED_TEXT${marker}`)
+      } else {
+        ed.executeEdits('glyph-format', [{ range: sel, text: marker + model.getValueInRange(sel) + marker }])
+      }
+      ed.focus()
+    }
+
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => wrapWithMarker('*'))
+    ed.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => wrapWithMarker('_'))
+
     ensureCompletionProvider()
 
     ed.onDidChangeModelContent(() => {
@@ -325,10 +403,14 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
     })
   }, [closePalette])
 
+  useEffect(() => {
+    editorRef.current?.updateOptions({ fontSize })
+  }, [fontSize])
+
   return (
     <div
       ref={containerRef}
-      style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}
+      style={{ flex: 1, overflow: 'hidden', minWidth: 0, position: 'relative' }}
     >
       <MonacoEditor
         height="100%"
@@ -338,7 +420,7 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
         onMount={handleMount}
         onChange={(v) => onChange(v ?? '')}
         options={{
-          fontSize: 14,
+          fontSize,
           fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', Menlo, monospace",
           fontLigatures: true,
           lineHeight: 22,
@@ -372,6 +454,76 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
         onSelect={doInsert}
         onClose={closePalette}
       />
+
+      <FindReplaceModal
+        editorRef={editorRef}
+        open={findOpen}
+        showReplace={findShowReplace}
+        query={findQuery}
+        onQueryChange={setFindQuery}
+        onShowReplaceChange={setFindShowReplace}
+        onClose={() => setFindOpen(false)}
+      />
+
+      {/* Font size control */}
+      <div style={{
+        position: 'absolute',
+        bottom: 12,
+        right: 12,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(255,255,255,0.9)',
+        borderRadius: 14,
+        boxShadow: '0 1px 6px rgba(0,40,120,0.07)',
+        padding: '2px 4px',
+        zIndex: 5,
+      }}>
+        <button
+          onClick={() => setFontSize(s => Math.max(10, s - 1))}
+          disabled={fontSize <= 10}
+          title="Decrease font size"
+          style={fontSizeBtnStyle(fontSize <= 10)}
+        >−</button>
+        <span style={{
+          fontSize: 10,
+          color: 'var(--subtext)',
+          minWidth: 28,
+          textAlign: 'center',
+          userSelect: 'none',
+          letterSpacing: '-0.01em',
+        }}>
+          {fontSize}px
+        </span>
+        <button
+          onClick={() => setFontSize(s => Math.min(24, s + 1))}
+          disabled={fontSize >= 24}
+          title="Increase font size"
+          style={fontSizeBtnStyle(fontSize >= 24)}
+        >+</button>
+      </div>
     </div>
   )
+}
+
+function fontSizeBtnStyle(disabled: boolean): React.CSSProperties {
+  return {
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    width: 22,
+    height: 22,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.3 : 0.65,
+    fontSize: 13,
+    color: 'var(--subtext)',
+    padding: 0,
+    lineHeight: 1,
+  }
 }

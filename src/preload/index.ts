@@ -34,6 +34,7 @@ export interface TypstEditorAPI {
   onMenuOpen(cb: () => void): () => void
   onMenuSave(cb: () => void): () => void
   onMenuSaveAs(cb: () => void): () => void
+  onMenuRerender(cb: () => void): () => void
   onOpenFile(cb: (filePath: string) => void): () => void
 }
 
@@ -108,6 +109,12 @@ const api: TypstEditorAPI = {
     const handler = () => cb()
     ipcRenderer.on('menu:save-as', handler)
     return () => ipcRenderer.off('menu:save-as', handler)
+  },
+
+  onMenuRerender: (cb) => {
+    const handler = () => cb()
+    ipcRenderer.on('menu:rerender', handler)
+    return () => ipcRenderer.off('menu:rerender', handler)
   },
 
   onOpenFile: (cb) => {

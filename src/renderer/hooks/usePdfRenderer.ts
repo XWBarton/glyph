@@ -7,7 +7,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 export function usePdfRenderer(
   containerRef: React.RefObject<HTMLDivElement | null>,
-  pdfBytes: Uint8Array | null
+  pdfBytes: Uint8Array | null,
+  zoom: number = 1
 ) {
   const versionRef = useRef(0)
 
@@ -33,7 +34,8 @@ export function usePdfRenderer(
 
           const page = await doc.getPage(pageNum)
           const baseViewport = page.getViewport({ scale: 1 })
-          const scale = (availableWidth / baseViewport.width) * dpr
+          const fitScale = availableWidth / baseViewport.width
+          const scale = fitScale * zoom * dpr
           const viewport = page.getViewport({ scale })
 
           const canvas = document.createElement('canvas')
@@ -66,5 +68,5 @@ export function usePdfRenderer(
     }
 
     run()
-  }, [pdfBytes, containerRef])
+  }, [pdfBytes, containerRef, zoom])
 }

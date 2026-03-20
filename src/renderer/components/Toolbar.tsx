@@ -93,7 +93,7 @@ export function Toolbar({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
+        gap: 10,
         WebkitAppRegion: 'drag' as React.CSSProperties['WebkitAppRegion'],
         cursor: 'default',
         minWidth: 0,
@@ -112,7 +112,17 @@ export function Toolbar({
           {fileName}{isDirty ? ' ·' : ''}
         </span>
         {!isDirty && lastSaved && filePath && (
-          <span style={{ fontSize: 11, color: 'var(--overlay)', letterSpacing: '-0.01em', userSelect: 'none' }}>
+          <span style={{
+            fontSize: 10,
+            color: 'var(--green)',
+            background: 'rgba(22,163,74,0.10)',
+            border: '1px solid rgba(22,163,74,0.20)',
+            borderRadius: 20,
+            padding: '3px 10px',
+            letterSpacing: '-0.01em',
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+          }}>
             {formatLastSaved(lastSaved)}
           </span>
         )}

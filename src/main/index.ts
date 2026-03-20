@@ -18,6 +18,7 @@ app.on('open-file', (event, filePath) => {
 
 function createWindow(): void {
   const isMac = process.platform === 'darwin'
+  const isLinux = process.platform === 'linux'
 
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -25,8 +26,9 @@ function createWindow(): void {
     minWidth: 800,
     minHeight: 600,
     // macOS: hide titlebar and inset traffic lights into the toolbar area
-    // Windows/Linux: hidden titlebar so our custom toolbar is flush to the top
-    titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
+    // Windows: hidden titlebar (overlay controls still shown natively)
+    // Linux: default titlebar so the window manager provides decorations
+    titleBarStyle: isMac ? 'hiddenInset' : (isLinux ? 'default' : 'hidden'),
     // macOS native frosted glass — ignored on other platforms
     ...(isMac && {
       vibrancy: 'under-window',

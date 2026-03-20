@@ -41,7 +41,7 @@ export default function App() {
     return content + `\n\n#bibliography(${bibArg}, title: none)`
   }, [content, bookRoot, compileFilePath, bookBibPaths])
 
-  const { pdfBytes, error, isCompiling } = useTypstCompiler(
+  const { pdfBytes, error, isCompiling, compile } = useTypstCompiler(
     compileContent,
     filePath,
     compileFilePath,
@@ -93,10 +93,11 @@ export default function App() {
       window.api.onMenuNew(newFile),
       window.api.onMenuOpen(openFile),
       window.api.onMenuSave(() => saveFile(content)),
-      window.api.onMenuSaveAs(() => saveFileAs(content))
+      window.api.onMenuSaveAs(() => saveFileAs(content)),
+      window.api.onMenuRerender(compile),
     ]
     return () => unsubs.forEach(fn => fn())
-  }, [content, newFile, openFile, saveFile, saveFileAs])
+  }, [content, newFile, openFile, saveFile, saveFileAs, compile])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>

@@ -7,9 +7,18 @@ interface Props {
   isCompiling: boolean
 }
 
+const ZOOM_LEVELS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3]
+
+function zoomLabel(z: number): string {
+  return z === 1 ? 'Fit' : `${Math.round(z * 100)}%`
+}
+
 export function PreviewPane({ pdfBytes, error, isCompiling }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  usePdfRenderer(containerRef, pdfBytes)
+  const [zoomIdx, setZoomIdx] = useState(2) // default: index 2 = 1.0 (Fit)
+  const zoom = ZOOM_LEVELS[zoomIdx]
+
+  usePdfRenderer(containerRef, pdfBytes, zoom)
 
   return (
     <div style={{
@@ -26,7 +35,7 @@ export function PreviewPane({ pdfBytes, error, isCompiling }: Props) {
         style={{
           flex: 1,
           overflowY: 'auto',
-          overflowX: 'hidden',
+          overflowX: zoom > 1 ? 'auto' : 'hidden',
           position: 'relative',
           paddingTop: 4
         }}
@@ -49,10 +58,65 @@ export function PreviewPane({ pdfBytes, error, isCompiling }: Props) {
         )}
       </div>
 
+      {/* Zoom controls */}
+      {pdfBytes && (
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 2,
+          padding: '6px 0',
+          flexShrink: 0,
+          borderTop: '1px solid rgba(255,255,255,0.5)',
+        }}>
+          <button
+            onClick={() => setZoomIdx(i => Math.max(0, i - 1))}
+            disabled={zoomIdx === 0}
+            style={zoomBtnStyle(zoomIdx === 0)}
+            title="Zoom out"
+          >−</button>
+          <span style={{
+            fontSize: 11,
+            color: 'var(--subtext)',
+            minWidth: 34,
+            textAlign: 'center',
+            userSelect: 'none',
+            letterSpacing: '-0.01em',
+          }}>
+            {zoomLabel(zoom)}
+          </span>
+          <button
+            onClick={() => setZoomIdx(i => Math.min(ZOOM_LEVELS.length - 1, i + 1))}
+            disabled={zoomIdx === ZOOM_LEVELS.length - 1}
+            style={zoomBtnStyle(zoomIdx === ZOOM_LEVELS.length - 1)}
+            title="Zoom in"
+          >+</button>
+        </div>
+      )}
+
       {/* Error toast */}
       {error && <ErrorToast error={error} />}
     </div>
   )
+}
+
+function zoomBtnStyle(disabled: boolean): React.CSSProperties {
+  return {
+    background: 'transparent',
+    border: 'none',
+    borderRadius: 6,
+    width: 24,
+    height: 24,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: disabled ? 'default' : 'pointer',
+    opacity: disabled ? 0.3 : 0.7,
+    fontSize: 14,
+    color: 'var(--subtext)',
+    padding: 0,
+    lineHeight: 1,
+  }
 }
 
 function ErrorToast({ error }: { error: string }) {

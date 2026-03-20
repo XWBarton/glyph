@@ -39,7 +39,11 @@ export function buildMenu(win: BrowserWindow | null): void {
           label: 'Save As…',
           accelerator: 'CmdOrCtrl+Shift+S',
           click: () => win?.webContents.send('menu:save-as')
-        }
+        },
+        ...(process.platform !== 'darwin' ? [
+          { type: 'separator' as const },
+          { role: 'quit' as const }
+        ] : [])
       ]
     },
     {
@@ -57,8 +61,12 @@ export function buildMenu(win: BrowserWindow | null): void {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
+        {
+          label: 'Rerender PDF',
+          accelerator: 'CmdOrCtrl+R',
+          click: () => win?.webContents.send('menu:rerender')
+        },
+        { role: 'forceReload' }, // Cmd+Shift+R — actual app reload (dev use)
         { role: 'toggleDevTools' },
         { type: 'separator' },
         { role: 'resetZoom' },
@@ -73,8 +81,10 @@ export function buildMenu(win: BrowserWindow | null): void {
       submenu: [
         { role: 'minimize' },
         { role: 'zoom' },
-        { type: 'separator' },
-        { role: 'front' }
+        ...(process.platform === 'darwin' ? [
+          { type: 'separator' as const },
+          { role: 'front' as const }
+        ] : [])
       ]
     }
   ]
