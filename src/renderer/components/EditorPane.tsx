@@ -347,7 +347,7 @@ export function EditorPane({ value, filePath, bookRoot, onChange, tokenColors }:
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ctrl = (ed as any).getContribution('snippetController2')
       if (ctrl?.insert) {
-        ctrl.insert(`${marker}$TM_SELECTED_TEXT${marker}`)
+        ctrl.insert(`${marker}\${TM_SELECTED_TEXT}${marker}`)
       } else {
         ed.executeEdits('glyph-format', [{ range: sel, text: marker + model.getValueInRange(sel) + marker }])
       }
