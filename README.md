@@ -61,4 +61,4 @@ Launches the app in development mode with hot reload.
 
 Found this useful and want to help support maintenance?
 
-[![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://buymeacoffee.com/xbarton)
+<a href='https://ko-fi.com/X8X21WPZ2R' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://storage.ko-fi.com/cdn/kofi5.png?v=6' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
